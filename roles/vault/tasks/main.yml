@@ -1,0 +1,105 @@
+- name: "HashiCorp Vault | zipファイルをダウンロードする"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  get_url:
+    url: "{{ hashicorp_vault_zip_url }}"
+    dest: "{{ hashicorp_vault_zip_dest }}"
+    checksum: "{{hashicorp_vault_zip_checksum}}"
+
+- name: "HashiCorp Vault | zipファイルを展開して実行ファイルを配置する"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  unarchive:
+    src:  "{{ hashicorp_vault_zip_dest }}"
+    dest:  "{{ usr_local_bin }}"
+    remote_src: yes
+
+- name: "HashiCorp Vault | Vaultを設定する"
+  ignore_errors: "{{ ansible_check_mode }}"
+  shell:
+    cmd: |
+      {{ hashicorp_vault_name }} -autocomplete-install
+      complete -C {{ hashicorp_vault_bin_path }} {{ hashicorp_vault_name }}
+
+- name: "HashiCorp Vault | mlockのシステムコールをrootでなくても実行可能にする"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  shell:
+    cmd: setcap cap_ipc_lock=+ep {{ hashicorp_vault_bin_path }}
+
+- name: "HashiCorp Vault | Vault用のユーザーを追加する"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  user:
+    home: "{{ hashicorp_vault_etc_dir_root_path }}"
+    name: "{{ hashicorp_vault_name }}"
+    system: yes
+    shell: /bin/false
+
+- name: "HashiCorp Vault | Vault用のディレクトリを作成する"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  file:
+    group: "{{ hashicorp_vault_name }}"
+    owner: "{{ hashicorp_vault_name }}"
+    path: "{{ item }}"
+    recurse: yes
+    state: directory
+  with_items:
+    - "{{ hashicorp_vault_etc_dir_root_path }}"
+    - "{{ hashicorp_vault_storage_file_path }}"
+
+- name: "HashiCorp Vault | テンプレートファイルを配置する"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    group: "{{ item.group }}"
+    owner: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - {src: "{{ hashicorp_vault_config_file_template }}", 
+        dest: "{{ hashicorp_vault_config_path }}", 
+        group: "{{ hashicorp_vault_name }}", 
+        owner: "{{ hashicorp_vault_name }}",
+        mode: '0640'}
+    - {src: "{{ hashicorp_vault_service_file_template }}", 
+        dest: "{{ hashicorp_vault_service_file_path }}",
+        group: root,
+        owner: root,
+        mode: '0644'}
+
+- name: "HashiCorp Vault | サービスを起動する"
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  systemd:
+    name: "{{ hashicorp_vault_name }}"
+    enabled: yes
+    state: started
+
+- name: "HashiCorp Vault | セキュリティのためにvaultの実行履歴を残さないようにする（管理者権限）" 
+  become: yes
+  ignore_errors: "{{ ansible_check_mode }}"
+  shell:
+    cmd: |
+      cat "{{ item }}" | grep "{{ hashicorp_vault_histignore_for_grep }}" >/dev/null
+      if [ $? -eq 0 ]; then
+        echo "already changed."
+      else
+        echo -e "\n{{ hashicorp_vault_histignore }}" >> "{{ item }}"
+      fi
+  with_items:
+    - "/etc/bashrc"
+    - "/root/.bashrc"
+
+- name: "HashiCorp Vault | セキュリティのためにvaultの実行履歴を残さないようにする（ログインユーザー）" 
+  ignore_errors: "{{ ansible_check_mode }}"
+  shell:
+    cmd: |
+      cat "/home/$USER/.bashrc" | grep "{{ hashicorp_vault_histignore_for_grep }}" >/dev/null
+      if [ $? -eq 0 ]; then
+        echo "already changed."
+      else
+        echo -e "\n{{ hashicorp_vault_histignore }}" >> "/home/$USER/.bashrc"
+      fi

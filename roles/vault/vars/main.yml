@@ -1,0 +1,24 @@
+hashicorp_vault_name: vault
+
+hashicorp_vault_version: 1.4.2
+
+hashicorp_vault_zip_url: "https://releases.hashicorp.com/vault/{{ hashicorp_vault_version }}/vault_{{ hashicorp_vault_version }}_linux_amd64.zip"
+hashicorp_vault_zip_dest: "{{ usr_local_src }}/vault_{{ hashicorp_vault_version }}_linux_amd64.zip"
+hashicorp_vault_zip_checksum: "sha256:f2bca89cbffb8710265eb03bc9452cc316b03338c411ba8453ffe7419390b8f1"
+
+hashicorp_vault_bin_path: "{{ usr_local_bin }}/{{ hashicorp_vault_name }}"
+
+hashicorp_vault_etc_dir_root_path: "/etc/{{ hashicorp_vault_name }}.d"
+
+hashicorp_vault_config_file: "{{ hashicorp_vault_name }}.hcl"
+hashicorp_vault_config_file_template: "{{ hashicorp_vault_config_file }}.j2"
+hashicorp_vault_config_path: "{{ hashicorp_vault_etc_dir_root_path }}/{{ hashicorp_vault_config_file }}"
+
+hashicorp_vault_service_file: "{{ hashicorp_vault_name }}.service"
+hashicorp_vault_service_file_template: "{{ hashicorp_vault_service_file }}.j2"
+hashicorp_vault_service_file_path: "/etc/systemd/system/{{ hashicorp_vault_service_file }}"
+
+hashicorp_vault_storage_file_path: "/var/vault/data"
+
+hashicorp_vault_histignore_for_grep: export HISTIGNORE=\"&:vault\*\"
+hashicorp_vault_histignore: export HISTIGNORE=\"&:vault*\"
